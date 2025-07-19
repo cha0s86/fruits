@@ -1,124 +1,116 @@
 // This is a simple agar.io-like game using SDL2
-// It is a basic implementation of a game where, players are moving around the screen and eating smaller fruits will make the player grow
-// To compile this code, you need to have SDL2 installed and link against the SDL2 library.
+// Players move around, eat fruits to grow, and can shoot fruit projectiles
+// Compile with: g++ fruits.cpp -o fruits -lSDL2
 #include <SDL2/SDL.h>
 #include <iostream>
+#include <vector>
+#include <cmath>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
 
-// SDL Constants for window dimensions
-const int WINDOW_WIDTH = 800;
-const int WINDOW_HEIGHT = 600;
+// === Window Constants ===
+const int WINDOW_WIDTH = 1280;
+const int WINDOW_HEIGHT = 720;
 
-// Function to render the fruit object
-void renderFruits(SDL_Renderer* renderer, const SDL_Rect& fruit, SDL_Color color) {
-	// Set the color for the fruit
-	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
-	// Render the fruit as a filled rectangle
-	SDL_RenderFillRect(renderer, &fruit);
-	// Set the color for the border
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White color
-	// Draw a border around the fruit
-	SDL_RenderDrawRect(renderer, &fruit);
+// === Structs ===
+struct Projectile {
+    float x, y;
+    float vx, vy;
+    int w, h;
+    SDL_Color color;
+};
+
+// === Rendering Functions ===
+void renderRect(SDL_Renderer* renderer, const SDL_Rect& rect, SDL_Color color) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
+    SDL_RenderFillRect(renderer, &rect);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderDrawRect(renderer, &rect);
 }
 
-// Function to render the player
-void renderPlayer(SDL_Renderer* renderer, const SDL_Rect& player) {
-	// Set the color for the player
-	SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Red color
-	// Render the player as a filled rectangle
-	SDL_RenderFillRect(renderer, &player);
-	// Set the color for the border
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White color
-	// Draw a border around the player
-	SDL_RenderDrawRect(renderer, &player);
+void renderPlayer(SDL_Renderer* renderer, const SDL_Rect& player, Uint8 alpha = 255) {
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_Color color = {255, 0, 0, alpha}; // Red
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    SDL_RenderFillRect(renderer, &player);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, alpha);
+    SDL_RenderDrawRect(renderer, &player);
 }
 
-void renderPlayer2(SDL_Renderer* renderer, const SDL_Rect& player) {
-	// Set the color for the player
-	SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Green color
-	// Render the player as a filled rectangle
-	SDL_RenderFillRect(renderer, &player);
-	// Set the color for the border
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White color
-	// Draw a border around the player
-	SDL_RenderDrawRect(renderer, &player);
+void renderPlayer2(SDL_Renderer* renderer, const SDL_Rect& player, Uint8 alpha = 255) {
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_Color color = {0, 255, 0, alpha}; // Green
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    SDL_RenderFillRect(renderer, &player);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, alpha);
+    SDL_RenderDrawRect(renderer, &player);
 }
-	
-// Function to handle player1 input
+
+void renderProjectile(SDL_Renderer* renderer, const Projectile& proj) {
+    SDL_Rect rect = {static_cast<int>(proj.x), static_cast<int>(proj.y), proj.w, proj.h};
+    renderRect(renderer, rect, proj.color);
+}
+
+// === Input Handling ===
 void handlePlayerInput(SDL_Rect& player) {
-	const Uint8* state = SDL_GetKeyboardState(NULL);
-	if (state[SDL_SCANCODE_UP]) {
-		player.y -= 5; // Move up
-	}
-	if (state[SDL_SCANCODE_DOWN]) {
-		player.y += 5; // Move down
-	}
-	if (state[SDL_SCANCODE_LEFT]) {
-		player.x -= 5; // Move left
-	}
-	if (state[SDL_SCANCODE_RIGHT]) {
-		player.x += 5; // Move right
-	}
+    const Uint8* state = SDL_GetKeyboardState(NULL);
+    if (state[SDL_SCANCODE_W])    player.y -= 5;
+    if (state[SDL_SCANCODE_S])    player.y += 5;
+    if (state[SDL_SCANCODE_A])    player.x -= 5;
+    if (state[SDL_SCANCODE_D])    player.x += 5;
 }
 
-// Function to handle player2 input
-void handlePlayer2Input(SDL_Rect& player) {
-	const Uint8* state = SDL_GetKeyboardState(NULL);
-	if (state[SDL_SCANCODE_W]) {
-		player.y -= 5; // Move up
-	}
-	if (state[SDL_SCANCODE_S]) {
-		player.y += 5; // Move down
-	}
-	if (state[SDL_SCANCODE_A]) {
-		player.x -= 5; // Move left
-	}
-	if (state[SDL_SCANCODE_D]) {
-		player.x += 5; // Move right
-	}
+void handlePlayer2Input(SDL_Rect& player2) {
+    const Uint8* state = SDL_GetKeyboardState(NULL);
+    if (state[SDL_SCANCODE_UP])    player2.y -= 5;
+    if (state[SDL_SCANCODE_DOWN])  player2.y += 5;
+    if (state[SDL_SCANCODE_LEFT])  player2.x -= 5;
+    if (state[SDL_SCANCODE_RIGHT]) player2.x += 5;
 }
 
-void checkForOutOfBounds(SDL_Rect& player) {
-	// Ensure player does not exceed window bounds
-	if (player.x < 0) player.x = 0;
-	if (player.y < 0) player.y = 0;
-	if (player.x + player.w > WINDOW_WIDTH) player.x = WINDOW_WIDTH - player.w;
-	if (player.y + player.h > WINDOW_HEIGHT) player.y = WINDOW_HEIGHT - player.h;
+void handlePlayer2AI(SDL_Rect& player, const SDL_Rect& fruit) {
+    if (player.x < fruit.x)      player.x += 5;
+    else if (player.x > fruit.x) player.x -= 5;
+    if (player.y < fruit.y)      player.y += 5;
+    else if (player.y > fruit.y) player.y -= 5;
 }
 
-void checkForCollisionWithFruits(SDL_Rect& player, SDL_Rect& fruit) {
-	// Check for collision between player and fruit
-	if (SDL_HasIntersection(&player, &fruit)) {
-		// Reset fruit position to a new random location
-		fruit.x = rand() % (WINDOW_WIDTH - 50);
-		fruit.y = rand() % (WINDOW_HEIGHT - 50);
-		// Increase player size
-		player.w += 10;
-		player.h += 10;
-		// Ensure player does not exceed window bounds
-		checkForOutOfBounds(player);
-	}
+// === Utility Functions ===
+void keepInBounds(SDL_Rect& rect) {
+    if (rect.x < 0) rect.x = 0;
+    if (rect.y < 0) rect.y = 0;
+    if (rect.x + rect.w > WINDOW_WIDTH)  rect.x = WINDOW_WIDTH - rect.w;
+    if (rect.y + rect.h > WINDOW_HEIGHT) rect.y = WINDOW_HEIGHT - rect.h;
 }
 
-// Function to initialize SDL and create a window and renderer
+void checkEatFruit(SDL_Rect& player, SDL_Rect& fruit) {
+    if (SDL_HasIntersection(&player, &fruit)) {
+        fruit.x = rand() % (WINDOW_WIDTH - 50);
+        fruit.y = rand() % (WINDOW_HEIGHT - 50);
+        player.w += 10;
+        player.h += 10;
+        keepInBounds(player);
+    }
+}
+
+// === Main Game ===
 int main(int argc, char* argv[]) {
-
+    // SDL Initialization
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
         return 1;
     }
-
     SDL_Window* window = SDL_CreateWindow(
         "Fruits! - Agar.io-like Game",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        WINDOW_WIDTH, WINDOW_HEIGHT,
-        SDL_WINDOW_SHOWN
+        WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN
     );
     if (!window) {
         std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
         SDL_Quit();
         return 1;
     }
-
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) {
         std::cerr << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
@@ -127,100 +119,157 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-	// Initialize player and apple positions
-	// Random positioning for player and fruits
-	srand(static_cast<unsigned int>(time(0))); // Seed for random number generation
+    bool useAI = false;
+    if (argc > 1) {
+        if (std::string(argv[1]) == "--ai") {
+            useAI = true;
+        } else {
+            std::cout << "Wrong syntax: available flags are (--ai)\n";
+            return 1;
+        }
+    }
 
-	// Player rects with random initial position
-	SDL_Rect player = { rand() % (WINDOW_WIDTH - 50), rand() % (WINDOW_HEIGHT - 50), 50, 50 };
-	SDL_Rect player2 = { rand() % (WINDOW_WIDTH - 50), rand() % (WINDOW_HEIGHT - 50), 50, 50 };
 
-	// Fruit rects
-	SDL_Rect apple = { rand() % (WINDOW_WIDTH - 50), rand() % (WINDOW_HEIGHT - 50),	50,	50 };
-	SDL_Rect pear = { rand() % (WINDOW_WIDTH - 50), rand() % (WINDOW_HEIGHT - 50),	50,	50 };
+    // Random seed
+    srand(static_cast<unsigned int>(time(0)));
 
-	SDL_Color appleColor = { 255, 0, 0, 255 }; // Red color for apple
-	SDL_Color pearColor = { 0, 255, 0, 255 }; // Green color for pear
+    // Players and fruits
+    SDL_Rect player  = {rand() % (WINDOW_WIDTH - 50), rand() % (WINDOW_HEIGHT - 50), 50, 50};
+    SDL_Rect player2 = {rand() % (WINDOW_WIDTH - 50), rand() % (WINDOW_HEIGHT - 50), 50, 50};
+    SDL_Rect apple   = {rand() % (WINDOW_WIDTH - 50), rand() % (WINDOW_HEIGHT - 50), 50, 50};
+    SDL_Rect pear    = {rand() % (WINDOW_WIDTH - 50), rand() % (WINDOW_HEIGHT - 50), 50, 50};
+    SDL_Color appleColor = {255, 0, 0, 255};
+    SDL_Color pearColor  = {0, 255, 0, 255};
 
-	bool running = true;
+    std::vector<Projectile> projectiles;
+    bool running = true;
+    bool mousePressed = false;
+    SDL_Event event;
+    int shotsAvailable = 0; // Number of projectiles player can shoot
+    int shotsAvailable2 = 0; // Number of projectiles player2 (AI) can shoot
 
-	SDL_Event event;
-	while (running) {
-		// Handle events
-		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_QUIT) {
-				running = false; // Exit the loop if the window is closed
-			}
-			if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
-				running = false; // Exit the loop if the Escape key is pressed
-			}
-			if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) {
-				// Reset player position to the center of the window
-				player.x = WINDOW_WIDTH / 2 - 25;
-				player.y = WINDOW_HEIGHT / 2 - 25;
-			}
-		}
+    // === Main Loop ===
+    while (running) {
+        // --- Event Handling ---
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) running = false;
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) running = false;
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) {
+                player.x = WINDOW_WIDTH / 2 - 25;
+                player.y = WINDOW_HEIGHT / 2 - 25;
+            }
+            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) mousePressed = true;
+            if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) mousePressed = false;
+        }
 
-		// Check for out of bounds for player and player2
-		checkForOutOfBounds(player);
-		checkForOutOfBounds(player2);
+        // --- Game Logic ---
+        keepInBounds(player);
+        keepInBounds(player2);
+        // Check if player eats apple
+        int prevW = player.w, prevH = player.h;
+        checkEatFruit(player, apple);
+        if (player.w > prevW || player.h > prevH) {
+            shotsAvailable += 5; // Gain 5 shots per fruit eaten
+        }
+        // Check if player2 eats pear (AI)
+        int prevW2 = player2.w, prevH2 = player2.h;
+        checkEatFruit(player2, pear);
+        if (player2.w > prevW2 || player2.h > prevH2) {
+            shotsAvailable2 += 5; // AI gains 5 shots per fruit eaten
+        }
+        // Shooting: add projectile on mouse click (player1)
+        if (mousePressed && shotsAvailable > 0) {
+            int mouseX, mouseY;
+            SDL_GetMouseState(&mouseX, &mouseY);
+            float px = player.x + player.w / 2.0f - 10;
+            float py = player.y + player.h / 2.0f - 10;
+            float dx = mouseX - (player.x + player.w / 2.0f);
+            float dy = mouseY - (player.y + player.h / 2.0f);
+            float len = std::sqrt(dx * dx + dy * dy);
+            if (len > 0) { dx /= len; dy /= len; }
+            float speed = 10.0f;
+            projectiles.push_back({px, py, dx * speed, dy * speed, 20, 20, appleColor});
+            shotsAvailable--;
+            mousePressed = false; // Only shoot once per click
+        }
+        // AI shooting mechanism (only if useAI)
+        if (useAI && shotsAvailable2 > 0) {
+            // AI shoots at player1 if not already shooting (simple cooldown: only shoot if no projectile is close to player2)
+            bool aiCanShoot = true;
+            for (const auto& proj : projectiles) {
+                SDL_Rect projRect = {static_cast<int>(proj.x), static_cast<int>(proj.y), proj.w, proj.h};
+                if (SDL_HasIntersection(&projRect, &player2)) {
+                    aiCanShoot = false;
+                    break;
+                }
+            }
+            if (aiCanShoot) {
+                float px = player2.x + player2.w / 2.0f - 10;
+                float py = player2.y + player2.h / 2.0f - 10;
+                float dx = (player.x + player.w / 2.0f) - (player2.x + player2.w / 2.0f);
+                float dy = (player.y + player.h / 2.0f) - (player2.y + player2.h / 2.0f);
+                float len = std::sqrt(dx * dx + dy * dy);
+                if (len > 0) { dx /= len; dy /= len; }
+                float speed = 10.0f;
+                projectiles.push_back({px, py, dx * speed, dy * speed, 20, 20, pearColor});
+                shotsAvailable2--;
+            }
+        }
+        // Update projectiles
+        for (auto& proj : projectiles) {
+            proj.x += proj.vx;
+            proj.y += proj.vy;
+        }
+        // Check projectile collision with player2 and remove on hit
+        projectiles.erase(
+            std::remove_if(projectiles.begin(), projectiles.end(), [&](const Projectile& proj) {
+                SDL_Rect projRect = {static_cast<int>(proj.x), static_cast<int>(proj.y), proj.w, proj.h};
+                if (SDL_HasIntersection(&projRect, &player2)) {
+                    // Reduce player2 size by 20, but not below 20x20
+                    player2.w = std::max(20, player2.w - 20);
+                    player2.h = std::max(20, player2.h - 20);
+                    keepInBounds(player2);
+                    return true; // Remove projectile
+                }
+                // Remove if out of bounds
+                return proj.x < 0 || proj.y < 0 || proj.x + proj.w > WINDOW_WIDTH || proj.y + proj.h > WINDOW_HEIGHT;
+            }),
+            projectiles.end()
+        );
 
-		// Check for collision with fruits
-		checkForCollisionWithFruits(player, apple);
-		checkForCollisionWithFruits(player2, pear);
-		
+        handlePlayerInput(player);
 
-		// Clear the renderer
-		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black color
-		SDL_RenderClear(renderer);
+        // Check if program was run with AI flag
+        if (useAI) {
+            handlePlayer2AI(player2, pear);
+        } else {
+            handlePlayer2Input(player2);
+        }
 
-		// Render the apple
-		renderFruits(renderer, apple, appleColor);
-		
-		// Render the pear
-		renderFruits(renderer, pear, pearColor);
+        // --- Rendering ---
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+        renderRect(renderer, apple, appleColor);
+        renderRect(renderer, pear, pearColor);
+        // Determine transparency for overlap
+        Uint8 alpha1 = 255, alpha2 = 255;
+        if (SDL_HasIntersection(&player, &apple) || SDL_HasIntersection(&player, &pear) || SDL_HasIntersection(&player, &player2)) alpha1 = 128;
+        if (SDL_HasIntersection(&player2, &apple) || SDL_HasIntersection(&player2, &pear) || SDL_HasIntersection(&player2, &player)) alpha2 = 128;
+        if (player.w < player2.w) {
+            renderPlayer(renderer, player, alpha1);
+            renderPlayer2(renderer, player2, alpha2);
+        } else {
+            renderPlayer2(renderer, player2, alpha2);
+            renderPlayer(renderer, player, alpha1);
+        }
+        for (const auto& proj : projectiles) renderProjectile(renderer, proj);
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16); // ~60 FPS
+    }
 
-		// Render the bigger player first
-		if (player.w < player2.w) {
-			renderPlayer(renderer, player);
-			renderPlayer2(renderer, player2);
-		} else {
-			renderPlayer2(renderer, player2);
-			renderPlayer(renderer, player);
-		}
-
-		// Handle player input
-		handlePlayerInput(player);
-		
-		// Handle player2 input
-		handlePlayer2Input(player2);
-		
-		// Present the renderer
-		SDL_RenderPresent(renderer);
-
-		// Check for collision between player and apple
-		if (SDL_HasIntersection(&player, &apple)) {
-			// Reset apple position to a new random location
-			apple.x = rand() % (WINDOW_WIDTH - 50);
-			apple.y = rand() % (WINDOW_HEIGHT - 50);
-			// Increase player size
-			player.w += 10;
-			player.h += 10;
-			// Ensure player does not exceed window bounds
-			if (player.x < 0) player.x = 0;
-			if (player.y < 0) player.y = 0;
-			if (player.x + player.w > WINDOW_WIDTH) player.x = WINDOW_WIDTH - player.w;
-			if (player.y + player.h > WINDOW_HEIGHT) player.y = WINDOW_HEIGHT - player.h;
-		}
-
-		// Delay to control frame rate
-		SDL_Delay(16); // Approximately 60 FPS
-	}
-
-    // Cleanup
+    // --- Cleanup ---
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
-	return 0;
+    return 0;
 }
