@@ -19,6 +19,7 @@ struct Projectile {
     float vx, vy;
     int w, h;
     SDL_Color color;
+    int owner; // 0 = player1, 1 = player2
 };
 
 // === Rendering Functions ===
@@ -141,12 +142,12 @@ int main(int argc, char* argv[]) {
     SDL_Color appleColor = {255, 0, 0, 255};
     SDL_Color pearColor  = {0, 255, 0, 255};
 
+    int player1Projectiles = 3;
+    int player2Projectiles = 3;
     std::vector<Projectile> projectiles;
     bool running = true;
     bool mousePressed = false;
     SDL_Event event;
-    int shotsAvailable = 0; // Number of projectiles player can shoot
-    int shotsAvailable2 = 0; // Number of projectiles player2 (AI) can shoot
 
     // === Main Loop ===
     while (running) {
@@ -169,16 +170,16 @@ int main(int argc, char* argv[]) {
         int prevW = player.w, prevH = player.h;
         checkEatFruit(player, apple);
         if (player.w > prevW || player.h > prevH) {
-            shotsAvailable += 5; // Gain 5 shots per fruit eaten
+            player1Projectiles = 3;
         }
         // Check if player2 eats pear (AI)
         int prevW2 = player2.w, prevH2 = player2.h;
         checkEatFruit(player2, pear);
         if (player2.w > prevW2 || player2.h > prevH2) {
-            shotsAvailable2 += 5; // AI gains 5 shots per fruit eaten
+            player2Projectiles = 3;
         }
         // Shooting: add projectile on mouse click (player1)
-        if (mousePressed && shotsAvailable > 0) {
+        if (mousePressed && player1Projectiles > 0) {
             int mouseX, mouseY;
             SDL_GetMouseState(&mouseX, &mouseY);
             float px = player.x + player.w / 2.0f - 10;
@@ -188,13 +189,12 @@ int main(int argc, char* argv[]) {
             float len = std::sqrt(dx * dx + dy * dy);
             if (len > 0) { dx /= len; dy /= len; }
             float speed = 10.0f;
-            projectiles.push_back({px, py, dx * speed, dy * speed, 20, 20, appleColor});
-            shotsAvailable--;
+            projectiles.push_back({px, py, dx * speed, dy * speed, 20, 20, appleColor, 0});
+            player1Projectiles--;
             mousePressed = false; // Only shoot once per click
         }
         // AI shooting mechanism (only if useAI)
-        if (useAI && shotsAvailable2 > 0) {
-            // AI shoots at player1 if not already shooting (simple cooldown: only shoot if no projectile is close to player2)
+        if (useAI && player2Projectiles > 0) {
             bool aiCanShoot = true;
             for (const auto& proj : projectiles) {
                 SDL_Rect projRect = {static_cast<int>(proj.x), static_cast<int>(proj.y), proj.w, proj.h};
@@ -211,8 +211,8 @@ int main(int argc, char* argv[]) {
                 float len = std::sqrt(dx * dx + dy * dy);
                 if (len > 0) { dx /= len; dy /= len; }
                 float speed = 10.0f;
-                projectiles.push_back({px, py, dx * speed, dy * speed, 20, 20, pearColor});
-                shotsAvailable2--;
+                projectiles.push_back({px, py, dx * speed, dy * speed, 20, 20, pearColor, 1});
+                player2Projectiles--;
             }
         }
         // Update projectiles
@@ -220,16 +220,23 @@ int main(int argc, char* argv[]) {
             proj.x += proj.vx;
             proj.y += proj.vy;
         }
-        // Check projectile collision with player2 and remove on hit
+        // Check projectile collision with player2 and player1, and remove on hit
         projectiles.erase(
             std::remove_if(projectiles.begin(), projectiles.end(), [&](const Projectile& proj) {
                 SDL_Rect projRect = {static_cast<int>(proj.x), static_cast<int>(proj.y), proj.w, proj.h};
-                if (SDL_HasIntersection(&projRect, &player2)) {
-                    // Reduce player2 size by 20, but not below 20x20
-                    player2.w = std::max(20, player2.w - 20);
-                    player2.h = std::max(20, player2.h - 20);
+                // Only player1's projectiles can hit player2
+                if (proj.owner == 0 && SDL_HasIntersection(&projRect, &player2)) {
+                    player2.w = std::max(20, player2.w - 10); // Ensure player2 doesn't shrink below 20x20 and reduce size by 20
+                    player2.h = std::max(20, player2.h - 10);
                     keepInBounds(player2);
-                    return true; // Remove projectile
+                    return true;
+                }
+                // Only player2's projectiles can hit player1
+                if (proj.owner == 1 && SDL_HasIntersection(&projRect, &player)) {
+                    player.w = std::max(20, player.w - 10);
+                    player.h = std::max(20, player.h - 10);
+                    keepInBounds(player);
+                    return true;
                 }
                 // Remove if out of bounds
                 return proj.x < 0 || proj.y < 0 || proj.x + proj.w > WINDOW_WIDTH || proj.y + proj.h > WINDOW_HEIGHT;
