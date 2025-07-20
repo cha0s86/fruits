@@ -1,18 +1,20 @@
 # 🍎 Fruits - Agar.io-like Game
 
-A simple 2D agar.io-like game built with SDL2 where players move around, eat fruits to grow, and can shoot projectiles in AI mode.
+A simple 2D agar.io-like game built with SDL2 where fruits move around, eat smaller fruits to grow, and can shoot projectiles in AI mode.
 
 ## 🎮 Game Modes
 
 ### PvP Mode (Default)
-- **Player 1 (Red)**: WASD to move
-- **Player 2 (Green)**: Arrow keys to move
-- Pure movement and fruit eating competition - no shooting!
+- **Apple (Red)**: WASD to move
+- **Pear (Green)**: Arrow keys to move
+- No shooting, pure movement and fruit eating competition
 
 ### AI Mode
-- **Player 1 (Red)**: WASD to move, Mouse click to shoot
-- **AI (Green)**: Automatic movement + shooting (toggleable)
-- Full combat mode with projectiles
+- **Apple (Red)**: WASD to move, Mouse click to shoot (only in AI mode)
+- **AI Fruits**: Pear (Green), Lemon (Yellow), Blueberry (Blue), Orange (Orange)
+- Up to 4 AI fruits, each with their own color and fruit
+- AI shooting is OFF by default, toggle with **T**
+- User can select number of AI fruits with `--ai N` (N=1-4)
 
 ## 🚀 Installation & Compilation
 
@@ -22,49 +24,29 @@ A simple 2D agar.io-like game built with SDL2 where players move around, eat fru
 
 ### Linux (Ubuntu/Debian)
 ```bash
-# Install SDL2
 sudo apt-get install libsdl2-dev
-
-# Compile the game
 g++ fruits.cpp -o fruits -lSDL2
-
-# Run the game
 ./fruits
 ```
 
 ### Linux (Arch/Artix)
 ```bash
-# Install SDL2
 sudo pacman -S sdl2
-
-# Compile the game
 g++ fruits.cpp -o fruits -lSDL2
-
-# Run the game
 ./fruits
 ```
 
 ### macOS
 ```bash
-# Install SDL2 (using Homebrew)
 brew install sdl2
-
-# Compile the game
 g++ fruits.cpp -o fruits -lSDL2
-
-# Run the game
 ./fruits
 ```
 
 ### Windows (MinGW)
 ```bash
-# Install SDL2 development libraries
-# Download from: https://www.libsdl.org/download-2.0.php
-
-# Compile the game
+# Download SDL2 from https://www.libsdl.org/download-2.0.php
 g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
-
-# Run the game
 ./fruits.exe
 ```
 
@@ -74,27 +56,25 @@ g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
 ```bash
 ./fruits
 ```
-- Two human players compete
-- Move around eating fruits to grow
-- No shooting - pure movement competition
+- Apple vs Pear, no shooting
 
-### AI Mode
+### AI Mode (with 1-4 AI fruits)
 ```bash
-./fruits --ai
+./fruits --ai 4
 ```
-- Player vs AI combat
-- Player 1 can shoot with mouse
-- AI shoots automatically (toggleable)
+- Apple vs Pear, Lemon, Blueberry, Orange
+- Only Apple can shoot (mouse, in AI mode)
+- AI shooting is OFF by default, toggle with **T**
 
 ## 🎮 Controls
 
-### Player 1 (Red)
+### Apple (Red)
 - **Movement**: WASD keys
 - **Shooting**: Mouse click (AI mode only)
 
-### Player 2 (Green) / AI
-- **Movement**: Arrow keys (PvP) / Automatic (AI mode)
-- **Shooting**: Automatic (AI mode only)
+### Pear (Green), Lemon (Yellow), Blueberry (Blue), Orange (Orange)
+- **Movement**: Arrow keys (Pear in PvP), automatic for all AIs in AI mode
+- **Shooting**: Only AI fruits can shoot, and only if AI shooting is enabled (T)
 
 ### Global Controls
 - **T**: Toggle AI shooting (AI mode only)
@@ -104,32 +84,29 @@ g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
 ## 🍎 Game Mechanics
 
 ### Fruit Eating
-- Eat red apples (Player 1) and green pears (Player 2/AI)
-- Grow larger with each fruit consumed
-- Reset projectile count to 3 when eating
+- Each fruit has its own target fruit (20x20)
+- Eating a target fruit increases size by 10x10 and resets projectiles to 3
+- Minimum fruit size is 20x20
 
 ### Projectiles (AI Mode Only)
-- Limited to 3 projectiles per player
-- Reset to 3 when eating fruits
-- Hit opponents to reduce their size
-- Projectiles disappear when hitting or going out of bounds
+- Only Apple can shoot (mouse click)
+- AI fruits can shoot if AI shooting is enabled
+- Projectiles reduce opponent's size by 10 (min 20x20)
+- Projectiles disappear on hit or out of bounds
 
 ### Win Condition
-- Cover the entire screen to win
-- Console displays winner message
+- Any fruit that covers the entire screen wins
+- Console displays the winner's name
 
 ### Transparency Effects
-- Players become semi-transparent when overlapping fruits or each other
-- Visual feedback for interactions
+- Fruits become semi-transparent when overlapping other fruits or their target
 
 ## 🏆 Victory Conditions
-
 - **Size-based**: Grow large enough to cover the entire screen
 - **Console feedback**: Winner announcement displayed
 - **Game ends**: Automatic termination after win
 
 ## 🔧 Technical Details
-
 - **Engine**: SDL2 for graphics, input, and window management
 - **Language**: C++
 - **Architecture**: Single-threaded game loop
@@ -140,7 +117,6 @@ g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
 
 ### Compilation Issues
 ```bash
-# If SDL2 not found, ensure development libraries are installed
 sudo apt-get install libsdl2-dev  # Ubuntu/Debian
 sudo pacman -S sdl2               # Arch/Artix
 brew install sdl2                 # macOS
@@ -165,4 +141,4 @@ This project is open source. Feel free to modify and distribute!
 
 ---
 
-**Enjoy the game!** 🎮🍎
+**Enjoy the game!** 🎮🍏🍐🍋🫐🍊
