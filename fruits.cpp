@@ -1,6 +1,7 @@
 // This is a simple agar.io-like game using SDL2
 // Players move around, eat fruits to grow, and can shoot fruit projectiles
 // Compile with: g++ fruits.cpp -o fruits -lSDL2
+
 #include <SDL2/SDL.h>
 #include <iostream>
 #include <vector>
@@ -95,6 +96,50 @@ void checkEatFruit(SDL_Rect& player, SDL_Rect& fruit) {
     }
 }
 
+void printControls() {
+    std::cout << "\n=== FRUITS GAME CONTROLS ===\n";
+    std::cout << "Player 1 (Red): WASD to move, Mouse to shoot (AI mode only)\n";
+    std::cout << "Player 2 (Green): Arrow keys to move\n";
+    std::cout << "T: Toggle AI shooting (AI mode only)\n";
+    std::cout << "P: Show projectile counts\n";
+    std::cout << "ESC: Quit game\n";
+    std::cout << "=============================\n\n";
+}
+
+void printProjectileCounts(int player1Projectiles, int player2Projectiles, bool useAI) {
+    std::cout << "Projectile Counts:\n";
+    std::cout << "Player 1 (Red): " << player1Projectiles << " projectiles left\n";
+    if (useAI) {
+        std::cout << "AI (Green): " << player2Projectiles << " projectiles left\n";
+    } else {
+        std::cout << "Player 2 (Green): " << player2Projectiles << " projectiles left\n";
+    }
+    std::cout << "------------------------\n";
+}
+
+void checkWinCondition(SDL_Rect& player, SDL_Rect& player2, bool useAI, bool& running) {
+    // Check if player1 wins (covers whole screen)
+    if (player.w >= WINDOW_WIDTH && player.h >= WINDOW_HEIGHT) {
+        std::cout << "\n🎉 Player 1 (red) won! 🎉\n";
+        std::cout << "Player 1 covered the entire screen!\n";
+        running = false;
+        return;
+    }
+    
+    // Check if player2/AI wins (covers whole screen)
+    if (player2.w >= WINDOW_WIDTH && player2.h >= WINDOW_HEIGHT) {
+        if (useAI) {
+            std::cout << "\n🎉 AI (green) won! 🎉\n";
+            std::cout << "AI covered the entire screen!\n";
+        } else {
+            std::cout << "\n🎉 Player 2 (Green) won! 🎉\n";
+            std::cout << "Player 2 covered the entire screen!\n";
+        }
+        running = false;
+        return;
+    }
+}
+
 // === Main Game ===
 int main(int argc, char* argv[]) {
     // SDL Initialization
@@ -102,6 +147,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
         return 1;
     }
+    
     SDL_Window* window = SDL_CreateWindow(
         "Fruits! - Agar.io-like Game",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -112,6 +158,7 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
+    
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) {
         std::cerr << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
@@ -120,16 +167,29 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Parse command line arguments
     bool useAI = false;
+    bool aiCanShoot = false; // Start with AI shooting disabled
     if (argc > 1) {
-        if (std::string(argv[1]) == "--ai") {
+        std::string arg = argv[1];
+        if (arg == "--ai") {
             useAI = true;
+            std::cout << "Starting in PvAI mode (Player vs AI)\n";
         } else {
-            std::cout << "Wrong syntax: available flags are (--ai)\n";
+            std::cout << "Usage: " << argv[0] << " [--ai]\n";
+            std::cout << "  --ai: PvAI mode (Player vs AI)\n";
+            std::cout << "  No arguments: PvP mode (Player vs Player)\n";
+            SDL_DestroyRenderer(renderer);
+            SDL_DestroyWindow(window);
+            SDL_Quit();
             return 1;
         }
+    } else {
+        std::cout << "Starting in PvP mode (Player vs Player)\n";
     }
 
+    // Print controls
+    printControls();
 
     // Random seed
     srand(static_cast<unsigned int>(time(0)));
@@ -146,7 +206,8 @@ int main(int argc, char* argv[]) {
     int player2Projectiles = 3;
     std::vector<Projectile> projectiles;
     bool running = true;
-    bool mousePressed = false;
+    bool player1ShootPressed = false;
+    bool player2ShootPressed = false;
     SDL_Event event;
 
     // === Main Loop ===
@@ -154,32 +215,59 @@ int main(int argc, char* argv[]) {
         // --- Event Handling ---
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) running = false;
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) {
-                player.x = WINDOW_WIDTH / 2 - 25;
-                player.y = WINDOW_HEIGHT / 2 - 25;
+            if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_ESCAPE:
+                        running = false;
+                        break;
+                    case SDLK_t:
+                        aiCanShoot = !aiCanShoot;
+                        std::cout << "AI shooting: " << (aiCanShoot ? "ENABLED" : "DISABLED") << "\n";
+                        break;
+                    case SDLK_p:
+                        printProjectileCounts(player1Projectiles, player2Projectiles, useAI);
+                        break;
+                }
             }
-            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) mousePressed = true;
-            if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) mousePressed = false;
+            // Mouse events for Player 1 (only in AI mode)
+            if (useAI && event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+                player1ShootPressed = true;
+            }
+            if (useAI && event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
+                player1ShootPressed = false;
+            }
         }
 
         // --- Game Logic ---
         keepInBounds(player);
         keepInBounds(player2);
+        
+        // Check win condition
+        checkWinCondition(player, player2, useAI, running);
+        if (!running) break;
+        
         // Check if player eats apple
         int prevW = player.w, prevH = player.h;
         checkEatFruit(player, apple);
         if (player.w > prevW || player.h > prevH) {
             player1Projectiles = 3;
+            std::cout << "Player 1 ate fruit! Projectiles reset to 3\n";
         }
-        // Check if player2 eats pear (AI)
+        
+        // Check if player2 eats pear
         int prevW2 = player2.w, prevH2 = player2.h;
         checkEatFruit(player2, pear);
         if (player2.w > prevW2 || player2.h > prevH2) {
             player2Projectiles = 3;
+            if (useAI) {
+                std::cout << "AI ate fruit! Projectiles reset to 3\n";
+            } else {
+                std::cout << "Player 2 ate fruit! Projectiles reset to 3\n";
+            }
         }
-        // Shooting: add projectile on mouse click (player1)
-        if (mousePressed && player1Projectiles > 0) {
+        
+        // Player 1 shooting (mouse click - only in AI mode)
+        if (player1ShootPressed && player1Projectiles > 0 && useAI) {
             int mouseX, mouseY;
             SDL_GetMouseState(&mouseX, &mouseY);
             float px = player.x + player.w / 2.0f - 10;
@@ -191,19 +279,20 @@ int main(int argc, char* argv[]) {
             float speed = 10.0f;
             projectiles.push_back({px, py, dx * speed, dy * speed, 20, 20, appleColor, 0});
             player1Projectiles--;
-            mousePressed = false; // Only shoot once per click
+            player1ShootPressed = false;
         }
-        // AI shooting mechanism (only if useAI)
-        if (useAI && player2Projectiles > 0) {
-            bool aiCanShoot = true;
+        
+        // AI shooting mechanism (only if useAI and aiCanShoot is true)
+        if (useAI && aiCanShoot && player2Projectiles > 0) {
+            bool aiCanShootNow = true;
             for (const auto& proj : projectiles) {
                 SDL_Rect projRect = {static_cast<int>(proj.x), static_cast<int>(proj.y), proj.w, proj.h};
                 if (SDL_HasIntersection(&projRect, &player2)) {
-                    aiCanShoot = false;
+                    aiCanShootNow = false;
                     break;
                 }
             }
-            if (aiCanShoot) {
+            if (aiCanShootNow) {
                 float px = player2.x + player2.w / 2.0f - 10;
                 float py = player2.y + player2.h / 2.0f - 10;
                 float dx = (player.x + player.w / 2.0f) - (player2.x + player2.w / 2.0f);
@@ -215,18 +304,20 @@ int main(int argc, char* argv[]) {
                 player2Projectiles--;
             }
         }
+        
         // Update projectiles
         for (auto& proj : projectiles) {
             proj.x += proj.vx;
             proj.y += proj.vy;
         }
-        // Check projectile collision with player2 and player1, and remove on hit
+        
+        // Check projectile collision and remove on hit
         projectiles.erase(
             std::remove_if(projectiles.begin(), projectiles.end(), [&](const Projectile& proj) {
                 SDL_Rect projRect = {static_cast<int>(proj.x), static_cast<int>(proj.y), proj.w, proj.h};
                 // Only player1's projectiles can hit player2
                 if (proj.owner == 0 && SDL_HasIntersection(&projRect, &player2)) {
-                    player2.w = std::max(20, player2.w - 10); // Ensure player2 doesn't shrink below 20x20 and reduce size by 20
+                    player2.w = std::max(20, player2.w - 10);
                     player2.h = std::max(20, player2.h - 10);
                     keepInBounds(player2);
                     return true;
@@ -246,7 +337,7 @@ int main(int argc, char* argv[]) {
 
         handlePlayerInput(player);
 
-        // Check if program was run with AI flag
+        // Handle player2 input or AI
         if (useAI) {
             handlePlayer2AI(player2, pear);
         } else {
@@ -258,10 +349,12 @@ int main(int argc, char* argv[]) {
         SDL_RenderClear(renderer);
         renderRect(renderer, apple, appleColor);
         renderRect(renderer, pear, pearColor);
+        
         // Determine transparency for overlap
         Uint8 alpha1 = 255, alpha2 = 255;
         if (SDL_HasIntersection(&player, &apple) || SDL_HasIntersection(&player, &pear) || SDL_HasIntersection(&player, &player2)) alpha1 = 128;
         if (SDL_HasIntersection(&player2, &apple) || SDL_HasIntersection(&player2, &pear) || SDL_HasIntersection(&player2, &player)) alpha2 = 128;
+        
         if (player.w < player2.w) {
             renderPlayer(renderer, player, alpha1);
             renderPlayer2(renderer, player2, alpha2);
@@ -269,12 +362,14 @@ int main(int argc, char* argv[]) {
             renderPlayer2(renderer, player2, alpha2);
             renderPlayer(renderer, player, alpha1);
         }
+        
         for (const auto& proj : projectiles) renderProjectile(renderer, proj);
         SDL_RenderPresent(renderer);
         SDL_Delay(16); // ~60 FPS
     }
 
     // --- Cleanup ---
+    std::cout << "Game ended. Thanks for playing!\n";
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
