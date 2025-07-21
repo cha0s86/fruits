@@ -1,14 +1,6 @@
 # 🍎 Fruits - Agar.io-like Game
 
-A simple 2D agar.io-like game built with SDL2 where fruits move around, eat smaller fruits to grow, and can shoot projectiles in AI mode. Includes a fun betting simulation for entertainment and learning purposes only.
-
----
-
-## ⚖️ Legal Disclaimer
-
-**This software is for entertainment and educational purposes only. It does not promote, facilitate, or enable real gambling or betting with real money. All betting features are simulated and no real currency or prizes are involved.**
-
-You may freely use, modify, and distribute this code. If you publish or share it, please retain this disclaimer.
+A simple 2D agar.io-like game built with SDL2 where fruits move around, eat smaller fruits to grow, and can shoot projectiles in AI mode.
 
 ---
 
@@ -164,6 +156,14 @@ brew install sdl2                 # macOS
 - Ensure SDL2 runtime libraries are installed
 - Check that the executable has proper permissions
 - Verify SDL2 is properly linked
+
+---
+
+## ⚖️ Legal Disclaimer
+
+**This software is for entertainment and educational purposes only. It does not promote, facilitate, or enable real gambling or betting with real money. All betting features are simulated and no real currency or prizes are involved.**
+
+You may freely use, modify, and distribute this code. If you publish or share it, please retain this disclaimer.
 
 ---
 
