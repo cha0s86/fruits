@@ -1,6 +1,16 @@
 # 🍎 Fruits - Agar.io-like Game
 
-A simple 2D agar.io-like game built with SDL2 where fruits move around, eat smaller fruits to grow, and can shoot projectiles in AI mode.
+A simple 2D agar.io-like game built with SDL2 where fruits move around, eat smaller fruits to grow, and can shoot projectiles in AI mode. Includes a fun betting simulation for entertainment and learning purposes only.
+
+---
+
+## ⚖️ Legal Disclaimer
+
+**This software is for entertainment and educational purposes only. It does not promote, facilitate, or enable real gambling or betting with real money. All betting features are simulated and no real currency or prizes are involved.**
+
+You may freely use, modify, and distribute this code. If you publish or share it, please retain this disclaimer.
+
+---
 
 ## 🎮 Game Modes
 
@@ -15,6 +25,14 @@ A simple 2D agar.io-like game built with SDL2 where fruits move around, eat smal
 - Up to 4 AI fruits, each with their own color and fruit
 - AI shooting is OFF by default, toggle with **T**
 - User can select number of AI fruits with `--ai N` (N=1-4)
+
+### AI vs AI Mode with Betting
+- `./fruits --aivsai N --bets` (N=2-5)
+- N AI fruits compete, and players can place simulated bets on the outcome
+- Flat tax of 0.25€ is deducted from the pot each game
+- All betting is for fun only; no real money is involved
+
+---
 
 ## 🚀 Installation & Compilation
 
@@ -50,6 +68,8 @@ g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
 ./fruits.exe
 ```
 
+---
+
 ## 🎯 Usage
 
 ### PvP Mode (Default)
@@ -66,6 +86,15 @@ g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
 - Only Apple can shoot (mouse, in AI mode)
 - AI shooting is OFF by default, toggle with **T**
 
+### AI vs AI Mode with Betting
+```bash
+./fruits --aivsai 3 --bets
+```
+- 3 AI fruits compete, and players can place simulated bets
+- Flat tax of 0.25€ per game
+
+---
+
 ## 🎮 Controls
 
 ### Apple (Red)
@@ -79,7 +108,10 @@ g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
 ### Global Controls
 - **T**: Toggle AI shooting (AI mode only)
 - **P**: Show projectile counts
+- **H**: Show help/controls
 - **ESC**: Quit game
+
+---
 
 ## 🍎 Game Mechanics
 
@@ -101,10 +133,14 @@ g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
 ### Transparency Effects
 - Fruits become semi-transparent when overlapping other fruits or their target
 
+---
+
 ## 🏆 Victory Conditions
 - **Size-based**: Grow large enough to cover the entire screen
 - **Console feedback**: Winner announcement displayed
 - **Game ends**: Automatic termination after win
+
+---
 
 ## 🔧 Technical Details
 - **Engine**: SDL2 for graphics, input, and window management
@@ -112,6 +148,8 @@ g++ fruits.cpp -o fruits.exe -lSDL2main -lSDL2
 - **Architecture**: Single-threaded game loop
 - **Rendering**: 60 FPS with alpha blending
 - **Collision**: SDL_HasIntersection for precise detection
+
+---
 
 ## 🐛 Troubleshooting
 
@@ -127,9 +165,13 @@ brew install sdl2                 # macOS
 - Check that the executable has proper permissions
 - Verify SDL2 is properly linked
 
+---
+
 ## 📝 License
 
 This project is open source. Feel free to modify and distribute!
+
+---
 
 ## 🤝 Contributing
 
