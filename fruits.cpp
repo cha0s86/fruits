@@ -23,7 +23,6 @@ constexpr int FRUIT_TARGET_SIZE = 20;
 constexpr int FRUIT_START_SIZE = 50;
 constexpr int PROJECTILE_SIZE = 20;
 constexpr int MAX_PROJECTILES = 3;
-constexpr double FLAT_TAX = 0.25; // Flat tax per game
 
 // === Structs ===
 struct Projectile {
@@ -148,8 +147,13 @@ void keepInBounds(SDL_Rect& rect) {
     if (rect.y + rect.h > WINDOW_HEIGHT) rect.y = WINDOW_HEIGHT - rect.h;
 }
 
-void checkEatFruit(SDL_Rect& player, SDL_Rect& fruit) {
-	if (SDL_HasIntersection(&player, &fruit)) {
+void checkEatFruit(SDL_Rect& player, SDL_Rect& fruit, bool screensaverMode) {
+	if (SDL_HasIntersection(&player, &fruit) && screensaverMode) {
+		// Generate a new random position for the fruit using srand()
+		fruit.x = rand() % (WINDOW_WIDTH - 50);
+		fruit.y = rand() % (WINDOW_HEIGHT - 50);
+        keepInBounds(player);
+    } else if (SDL_HasIntersection(&player, &fruit)) {
 		fruit.x = rand() % (WINDOW_WIDTH - 50);
 		fruit.y = rand() % (WINDOW_HEIGHT - 50);
 		player.w += FRUIT_GROWTH;
@@ -171,7 +175,6 @@ void printHelp() {
     std::cout << "Apple (Red):   WASD to move, Mouse to shoot (AI mode only)\n";
     std::cout << "Pear (Green):  Arrow keys to move\n";
     std::cout << "T:             Toggle AI shooting (AI mode only)\n";
-    std::cout << "P:             Show projectile counts\n";
     std::cout << "H:             Show this help message\n";
     std::cout << "ESC:           Quit game\n";
     std::cout << "==================================================\n\n";
@@ -240,19 +243,8 @@ void placeBets(const std::string& playerName, int numFruits) {
     }
 }
 
-void printProjectileCounts(int player1Projectiles, int player2Projectiles, bool useAI) {
-    std::cout << "Projectile Counts:\n";
-    std::cout << "Apple (Red): " << player1Projectiles << " projectiles left\n";
-    if (useAI) {
-        std::cout << "AI (Green): " << player2Projectiles << " projectiles left\n";
-    } else {
-        std::cout << "Pear (Green): " << player2Projectiles << " projectiles left\n";
-    }
-    std::cout << "------------------------\n";
-}
-
 void summarizeBets() {
-    std::cout << "\n======================= BETS SUMMARY =======================\n";
+    std::cout << "\n===================== BETS SUMMARY =======================\n";
     if (bets.empty()) {
         std::cout << "No bets placed.\n";
     } else {
@@ -274,9 +266,8 @@ void calculatePayouts(int numFruits, int winningFruitIndex) {
         return;
     }
 
-    double taxAmount = FLAT_TAX;
-    if (taxAmount > totalBetAmount) taxAmount = totalBetAmount; // Prevent negative payout
-    double payoutPool = totalBetAmount - taxAmount;
+    // Calculate taxes
+    double payoutPool = totalBetAmount;
 
     // Total payout for each player who bet on the winning fruit
     double totalWinningBets = 0.0;
@@ -291,10 +282,12 @@ void calculatePayouts(int numFruits, int winningFruitIndex) {
         return;
     }
 
+    // Print betting summary before payout calculation
+    summarizeBets();
+
     std::cout << "\n=================== PAYOUT CALCULATION ===================\n";
     std::cout << "Total bets together (The pot): " << totalBetAmount << " euros\n";
-    std::cout << "Flat tax: " << taxAmount << " euros\n";
-    std::cout << "Total payout for " << fruitNames[winningFruitIndex] << ": " << payoutPool << " euros after tax.\n";
+    std::cout << "Total payout for " << fruitNames[winningFruitIndex] << ": " << payoutPool << ".\n";
     std::cout << "==========================================================\n";
     for (const auto& bet : bets) {
         if (bet.fruitIndex == winningFruitIndex) {
@@ -313,25 +306,35 @@ void checkWinCondition(SDL_Rect* fruits, int numFruits, bool& running, bool aiVs
         if (fruits[i].w >= WINDOW_WIDTH && fruits[i].h >= WINDOW_HEIGHT) {
             std::cout << "\n" << fruitNames[i] << " won!\n";
             std::cout << fruitNames[i] << " covered the entire screen!\n";
-			std::cout << "Game Over!\n";
-			
-			if (aiVsAiMode) {
-				std::cout << "The winning fruit was: " << fruitNames[i] << ".\n";
+		}
+	}
+
+	if (aiVsAiMode) {
+		int winningFruitIndex = -1;
+		for (int i = 0; i < numFruits; ++i) { // For loop for all fruits
+			if (fruitRects[i].w >= WINDOW_WIDTH && fruitRects[i].h >= WINDOW_HEIGHT) { // Check if any fruit covers the entire screen
+				winningFruitIndex = i; // Set "winningFruit" with its index.
+				break;
+			}
+		}
+		if (winningFruitIndex != -1) { // If "winningFruit" has been set (is not -1), Calculate payouts.
+			std::cout << "The winning fruit was: " << fruitNames[winningFruitIndex] << ".\n";
+			// If betting is enabled, calculate payouts
+			if (!bets.empty()) {
 				std::cout << "Calculating payouts...\n";
-            }
-	
-            // Thank you message
-            std::cout << "==================================================\n";
-            std::cout << "Thank you for playing! Hope you enjoyed the game!\n";
-            std::cout << "==================================================\n";
-        
-            // End the game
-            std::cout << "Game Over!\n";
-            std::cout << "Press any key to exit...\n";
-			running = false;
-            return;
-        }
-    }
+				calculatePayouts(numFruits, winningFruitIndex);
+    
+				// Thank you message
+		    	std::cout << "==================================================\n";
+    			std::cout << "Thank you for playing! Hope you enjoyed the game!\n";
+				std::cout << "==================================================\n";
+       
+	    		// End the game
+	    		std::cout << "Press any key to exit...\n";
+				running = false;
+			}
+		}
+	}
 }
 
 // === Projectile Handling ===
@@ -378,9 +381,6 @@ void handleEvents(bool& running, bool& appleShootPressed, bool& aiCanShoot, bool
                     aiCanShoot = !aiCanShoot;
                     std::cout << "AI shooting: " << (aiCanShoot ? "ENABLED" : "DISABLED") << "\n";
                     break;
-                case SDLK_p:
-                    printProjectileCounts(fruitProjectiles[0], fruitProjectiles[1], useAI);
-                    break;
                 case SDLK_h:
                     printHelp();
                     break;
@@ -397,13 +397,13 @@ void handleEvents(bool& running, bool& appleShootPressed, bool& aiCanShoot, bool
 }
 
 // Game logic update
-void updateGameLogic(bool& running, bool aiVsAiMode, bool useAI, bool aiCanShoot, bool& appleShootPressed, int numFruits, int* fruitProjectiles, SDL_Rect* fruitRects, SDL_Rect* fruitTargets, std::vector<Projectile>& projectiles) {
+void updateGameLogic(bool& running, bool aiVsAiMode, bool useAI, bool aiCanShoot, bool& appleShootPressed, int numFruits, int* fruitProjectiles, SDL_Rect* fruitRects, SDL_Rect* fruitTargets, std::vector<Projectile>& projectiles, bool screensaverMode) {
     for (int i = 0; i < numFruits; ++i) keepInBounds(fruitRects[i]);
     checkWinCondition(fruitRects, numFruits, running, aiVsAiMode);
     if (!running) return;
     for (int i = 0; i < numFruits; ++i) {
         int prevW = fruitRects[i].w, prevH = fruitRects[i].h;
-        checkEatFruit(fruitRects[i], fruitTargets[i]);
+        checkEatFruit(fruitRects[i], fruitTargets[i], screensaverMode);
         if (fruitRects[i].w > prevW || fruitRects[i].h > prevH) {
             fruitProjectiles[i] = MAX_PROJECTILES;
         }
@@ -499,7 +499,11 @@ void renderGame(SDL_Renderer* renderer, int numFruits, SDL_Rect* fruitRects, SDL
 
 // === Main Game ===
 int main(int argc, char* argv[]) {
-    // SDL Initialization
+
+	// Seed random number generator, this generates a random seed based on the current time, and rand() will work using this seed.
+	std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+	// SDL Initialization
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
         return 1;
@@ -530,6 +534,7 @@ int main(int argc, char* argv[]) {
     int numAIs = 1; // Default to 1 AI
     int numFruits = 2; // Default to 2 fruits (Apple, Pear)
     bool aiVsAiMode = false; // Initialize global flag
+	bool screensaverMode = false;
     int betIndex = -1;
     if (argc > 1) {
         std::string arg = argv[1];
@@ -565,11 +570,15 @@ int main(int argc, char* argv[]) {
                 }
             }
             // Check for --bets flag
-            for (int i = 3; i < argc; ++i) {
+	        for (int i = 3; i < argc; ++i) {
                 if (std::string(argv[i]) == "--bets") {
                     enableBets = true;
                     break;
                 }
+				if (std::string(argv[i]) == "--screensaver") {
+					screensaverMode = true;
+					break;
+				}
             }
             numAIs = nFruits;
             numFruits = nFruits;
@@ -604,6 +613,9 @@ int main(int argc, char* argv[]) {
                     placeBets(playerName, numFruits);
                 }
             }
+			if (screensaverMode) {
+				aiCanShoot = false;
+			}
         } else {
             std::cout << "Usage: " << argv[0] << " [--ai N | --aivsai N]\n";
             std::cout << "  --ai N: PvAI mode (Apple vs N AIs, N=1-4)\n";
@@ -617,6 +629,7 @@ int main(int argc, char* argv[]) {
     } else {
         std::cout << "Starting in PvP mode (Apple vs Pear)\n";
         numAIs = 1;
+
         numFruits = 2;
     }
 
@@ -646,34 +659,12 @@ int main(int argc, char* argv[]) {
 		}
 
         // --- Game Logic ---
-		updateGameLogic(running, aiVsAiMode, useAI, aiCanShoot, appleShootPressed, numFruits, fruitProjectiles, fruitRects, fruitTargets, projectiles);
+		updateGameLogic(running, aiVsAiMode, useAI, aiCanShoot, appleShootPressed, numFruits, fruitProjectiles, fruitRects, fruitTargets, projectiles, screensaverMode);
         if (!running) break;
 
         // --- Rendering ---
 		renderGame(renderer, numFruits, fruitRects, fruitTargets, fruitColors, projectiles);
         SDL_Delay(16); // ~60 FPS
-    }
-
-    // --- Cleanup ---
-    if (aiVsAiMode) {
-		// Calculate payouts if in AI vs AI mode
-		int winningFruitIndex = -1;
-		for (int i = 0; i < numFruits; ++i) {
-			if (fruitRects[i].w >= WINDOW_WIDTH && fruitRects[i].h >= WINDOW_HEIGHT) {
-				winningFruitIndex = i;
-				break;
-			}
-		}
-		if (winningFruitIndex != -1) {
-			std::cout << "The winning fruit was: " << fruitNames[winningFruitIndex] << ".\n";
-			// If betting is enabled, calculate payouts
-			if (!bets.empty()) {
-				std::cout << "Calculating payouts...\n";
-				calculatePayouts(numFruits, winningFruitIndex);
-			}
-		} else {
-			std::cout << "No fruit won.\n";
-		}
     }
 
     std::cout << "Game ended. Thanks for playing!\n";
